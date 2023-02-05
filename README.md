@@ -2,6 +2,22 @@
 <!-- Edit the title above with your project title -->
 
 ## Project Overview
+Topic: Can we use ML to make predictions about real estate?
+This topic is important because it can help both businesses and consumers.
+Project Questions:
+Can ML predict a house price with different variables (regression)?
+Can my mom predict house prices better than ML?
+What would an answer look like:
+Prediction prices in the test dataset are close to the actual price
+Dot plot that shows model accuracy 
+Histogram of the residuals
+Bar chart of the ML prediction, mom's prediction, and the actual price
+Data Sources:
+Scraping Zillow
+Google Maps API
+Mapbox Satellite API
+I'm going to merge these using address as a primary key. 
+
 
 ## Self Assessment and Reflection
 
