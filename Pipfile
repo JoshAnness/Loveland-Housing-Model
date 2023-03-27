@@ -13,6 +13,8 @@ pandas = "*"
 cloudscraper = "*"
 lxml = "*"
 matplotlib = "*"
+plotly = "*"
+seaborn = "*"
 
 [dev-packages]
 

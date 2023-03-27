@@ -38,15 +38,30 @@
 # 
 # I am planning on creating a regression model based on the Zillow dataset and features I am able to scrape.
 
-# In[56]:
+# In[114]:
 
 
-# Start your code here
 import json
 import time
 import pandas as pd
 import http.client
 
+get_ipython().run_line_magic('matplotlib', 'inline')
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import plotly.graph_objects as go
+import seaborn as sns
+
+
+mpl.rc('axes', labelsize=14)
+mpl.rc('xtick', labelsize=12)
+mpl.rc('ytick', labelsize=12)
+plt.style.use("bmh")
+pd.set_option('display.max_rows', 500)
+
+
+# # Data Scraping
+# My Zillow query only looks at houses sold in the Loveland, OH area in the past year (3/26/2022-2/36/2023) 
 
 # In[57]:
 
@@ -167,26 +182,192 @@ for page in range(1, total_pages+1):
     time.sleep(200)
 
 
-# In[63]:
+# In[2]:
 
 
 holder = (list(zip(statusType,soldPrice,unformattedPrice,address,addressStreet,addressCity,addressState,addressZipcode,beds,baths,area,isZillowOwned,variableData,hdpData,latitude,longitude,price,dateSold,homeType,homeStatus,zestimate,rentZestimate,priceForHDP,currency,country,taxAssessedValue,lotAreaValue,lotAreaUnit,brokerName)))
 columns = ['statusType', 'soldPrice', 'unformattedPrice', 'address', 'addressStreet', 'addressCity', 'addressState', 'addressZipcode', 'beds', 'baths', 'area', 'isZillowOwned', 'variableData', 'hdpData', 'latitude', 'longitude', 'price', 'dateSold', 'homeType', 'homeStatus', 'zestimate', 'rentZestimate', 'priceForHDP', 'currency', 'country', 'taxAssessedValue', 'lotAreaValue', 'lotAreaUnit', 'brokerName']
 houses = pd.DataFrame(holder, columns=columns)
+houses.to_csv('houses.csv', index=False)
+
+
+# # Exploratory Data Analysis/Data Cleaning and Transformations
+
+# In[91]:
+
+
+houses = pd.read_csv('houses.csv')
+houses.head(2)
+
+
+# In[92]:
+
+
 houses.info()
 
 
-# In[64]:
+# In[93]:
 
 
-houses.to_csv('houses.csv', index=False)
+# Dropping some unuseful columns
+houses.drop(['statusType', 'soldPrice', 'address', 'addressStreet', 'addressCity', 'addressState', 'addressZipcode', 'isZillowOwned', 'variableData', 'hdpData', 'price', 'homeType', 'homeStatus', 'priceForHDP', 'currency', 'country'], axis=1, inplace=True)
+
+
+# In[94]:
+
+
+# Taking a look at the data again
+houses.info()
+
+
+# In[95]:
+
+
+houses.drop(['brokerName', 'dateSold', 'taxAssessedValue'], axis=1, inplace=True)
+
+# Changing column names to make more sense
+houses.rename(columns={'unformattedPrice': 'price', 'area': 'sqft'}, inplace=True)
+
+houses.head(2)
+
+
+# In[96]:
+
+
+houses.head(10)
+
+
+# In[97]:
+
+
+# Some of the area values are in sqft and some are in acres, let's convert all of them to acres
+def convert_to_acres(row):
+    if row['lotAreaUnit'] == 'sqft':
+        return row['lotAreaValue'] / 43560
+    else:
+        return row['lotAreaValue']
+
+houses['lotAreaValue'] = houses.apply(convert_to_acres, axis=1)
+
+houses.head(10)
+
+
+# In[98]:
+
+
+houses.drop(['lotAreaUnit'], axis=1, inplace=True)
+
+
+# In[99]:
+
+
+# Check for duplicates
+houses.duplicated().sum()
+
+
+# In[100]:
+
+
+# Looks like there are duplicates, some of the initial houses were repeated
+houses[houses.duplicated()]
+
+
+# In[101]:
+
+
+houses.drop_duplicates(inplace=True)
+houses.duplicated().sum()
+
+
+# In[102]:
+
+
+houses.isna().sum()
+
+
+# In[103]:
+
+
+houses.drop(['zestimate', 'rentZestimate'], axis=1, inplace=True)
+
+
+# In[104]:
+
+
+print(houses[houses.isna().any(axis=1)])
+
+
+# In[105]:
+
+
+houses.hist(bins=50, figsize=(20,15))
+
+
+# In[106]:
+
+
+# Remove the record if it doesn't have the number of bedrooms
+houses.dropna(subset=['beds'], inplace=True)
+houses.info()
+
+
+# In[107]:
+
+
+# Going to remove the remaning records with missing values
+houses.dropna(subset=['latitude', 'longitude', 'sqft', 'lotAreaValue'], inplace=True)
+houses.info()
+
+
+# In[110]:
+
+
+houses.describe()
+
+
+# In[109]:
+
+
+houses["price"].plot.hist(bins=50, figsize=(10,5))
+plt.show()
+
+
+# In[113]:
+
+
+fig = go.Figure(data=go.Scattergeo(
+        lon = houses['longitude'],
+        lat = houses['latitude'],
+        mode = 'markers'
+        ))
+
+fig.update_layout(
+        title = 'Housing Data in Loveland, OH',
+        geo_scope='usa'
+    )
+
+fig.show()
+
+
+# In[111]:
+
+
+# Correlation data for the price
+houses.corr()['price'].sort_values(ascending=False)
+
+
+# In[117]:
+
+
+fig, ax = plt.subplots(figsize=(6,6))
+sns.heatmap(houses.corr(), annot=True, ax=ax)
 
 
 # ## Resources and References
 # *What resources and references have you used for this project?*
 # 📝 <!-- Answer Below -->
 
-# In[2]:
+# In[108]:
 
 
 # ⚠️ Make sure you run this cell at the end of your notebook before every submission!
