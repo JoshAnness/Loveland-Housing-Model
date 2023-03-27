@@ -12,6 +12,7 @@ requests = "*"
 pandas = "*"
 cloudscraper = "*"
 lxml = "*"
+matplotlib = "*"
 
 [dev-packages]
 
