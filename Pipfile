@@ -15,6 +15,7 @@ lxml = "*"
 matplotlib = "*"
 plotly = "*"
 seaborn = "*"
+scipy = "*"
 
 [dev-packages]
 
