@@ -38,7 +38,7 @@
 # 
 # 1. Data Collection: Gather a comprehensive dataset of historical home sales in Loveland, OH, including property attributes (e.g., square footage, number of bedrooms, number of bathrooms, location, and other relevant factors).
 # 
-# 2. Data Preprocessing: Clean and preprocess the data, handling missing values, outliers, and encoding categorical variables as needed.
+# 2. Data Preprocessing & Exploratory Data Analysis: Clean and preprocess the data, handling missing values, outliers, and encoding categorical variables as needed. Examine and analyze the data to summarize the main characteristics and identify patterns, relationships, and anomalies.
 # 
 # 3. Feature Engineering: Identify and create new features that may have predictive power, based on domain knowledge and exploratory data analysis.
 # 
@@ -53,7 +53,7 @@
 # # Data Collection
 # I'm scrapping Zillow to get all the houses sold in the Loveland, OH (45140 Zip Code) area in the past year (4/7/2022 - 4/7/2023)
 
-# In[82]:
+# In[1]:
 
 
 import json
@@ -61,6 +61,7 @@ import time
 import pandas as pd
 import http.client
 import numpy as np
+from scipy.stats import skew, kurtosis
 
 get_ipython().run_line_magic('matplotlib', 'inline')
 import matplotlib as mpl
@@ -211,9 +212,9 @@ houses = pd.DataFrame(holder, columns=columns)
 houses.to_csv('houses.csv', index=False)
 
 
-# # Data Preprocessing
+# # Data Preprocessing & Exploratory Data Analysis
 
-# In[73]:
+# In[2]:
 
 
 houses = pd.read_csv('houses.csv')
@@ -223,7 +224,7 @@ houses.info()
 
 # Dropping some unuseful columns
 
-# In[74]:
+# In[3]:
 
 
 houses.drop(['statusType', 'soldPrice', 'address', 'addressStreet', 'addressCity', 'addressState', 'addressZipcode', 'isZillowOwned', 'variableData', 'hdpData', 'price', 'homeType', 'homeStatus', 'priceForHDP', 'currency', 'country', 'brokerName'], axis=1, inplace=True)
@@ -232,7 +233,7 @@ houses.info()
 
 # Changing column names to make more sense
 
-# In[75]:
+# In[4]:
 
 
 houses.rename(columns={'unformattedPrice': 'price', 'area': 'sqft'}, inplace=True)
@@ -241,7 +242,7 @@ houses.head()
 
 # Some of the area values are in sqft and some are in acres, let's convert all of them to acres
 
-# In[76]:
+# In[5]:
 
 
 def convert_to_acres(row):
@@ -257,14 +258,28 @@ houses.drop(['lotAreaUnit'], axis=1, inplace=True)
 
 # The price is what we're focused on, so let's take a further look at it
 
-# In[77]:
+# In[6]:
 
 
 print(houses['price'].describe())
 print('Median: ', houses['price'].median())
 
 
-# In[81]:
+# Wow, a house sold for $10.3 million and one sold for only $1,000! Something isn't right, I did some digging and it looks like Zillow had some wrong data for some "houses". I checked the $10.3 million dollar "house" and it turns out it isn't a house. To negate these issues, I've decided to filter my dataset to prices under $10,000,000.
+# 
+# I filtered by the zip code 45140 above so this house ins't in our data frame but it is in the raw data, go ahead and check out the price ;) - https://www.zillow.com/homedetails/6091-2nd-St-Miamiville-OH-45147/2062599063_zpid/
+
+# In[7]:
+
+
+houses = houses[(houses['price'] < 10000000)]
+print(houses['price'].describe())
+print('Median: ', houses['price'].median())
+
+
+# For the houses on the lower end of the price spectrum (like our $1,000 house), I found that either the data was wrong or the houses were complete trash (fixer-uppers if you will). So the cells below were used to help me determine an appropriate cutoff
+
+# In[8]:
 
 
 p1 = np.percentile(houses['price'], 1)
@@ -275,22 +290,32 @@ print('1st percentile: ', p1)
 print('5th percentile: ', p5)
 print('10th percentile: ', p10)
 
+sns.histplot(data=houses, x='price', kde=True)
+plt.xlabel('Price')
+plt.ylabel('Frequency')
+plt.title('Sales Price Distribution')
+plt.axvline(x=p1, color='red', linestyle='--', label='1st percentile')
+plt.axvline(x=p5, color='green', linestyle='--', label='5th percentile')
+plt.axvline(x=p10, color='blue', linestyle='--', label='10th percentile')
+plt.legend()
+plt.show()
 
-# Wow, a house sold for $10.3 million and one sold for only $1,000! Something isn't right, I did some digging and it looks like Zillow had some wrong data for some "houses". I checked the $10.3 million dollar "house" and it turns out it isn't a house. For the houses on the lower end of the price spectrum, I found that either the data was wrong or the houses were complete trash (fixer-uppers if you will). To negate these issues, I've decided to filter my dataset from the prices of $100,000 to $10,000,000.
+
+# 1st percentile: $15,000 - Choosing this value would retain 99% of the data, but the value still seems quite low for a home price.
+# 5th percentile: $85,000 - This option retains 95% of the data and seems a little more reasonable as a minimum value for a house.
+# 10th percentile: $149,900 - This choice retains 90% of the data and might be more representative of the lower end of the housing market.
 # 
-# I filtered by the zip code 45140 above so this house ins't in our data frame but it is in the raw data, go ahead and check out the price ;) - https://www.zillow.com/homedetails/6091-2nd-St-Miamiville-OH-45147/2062599063_zpid/
+# Due to our fixer-upper dillema, I'm gonna go with $149,900 as our minimum value for price.
 
-# In[72]:
-
-
-houses = houses[(houses['price'] > 150000) & (houses['price'] < 10000000)]
-print(houses['price'].describe())
-print('Median: ', houses['price'].median())
+# In[9]:
 
 
-# This looks a little better, we might revisit this down the road
+houses = houses[(houses['price'] >= 149900)]
 
-# In[78]:
+
+# Let's check out a histogram of the price again
+
+# In[10]:
 
 
 ax = sns.histplot(houses['price'], kde=True)
@@ -298,12 +323,128 @@ ax.xaxis.set_major_formatter(plt.FuncFormatter('{:,.0f}'.format))
 plt.show()
 
 
-# Let's make sure there are no duplicates
+# This looks better but it is still skewed to the right, let's look at this further
 
-# In[48]:
+# In[11]:
+
+
+print('Skewness: ', houses['price'].skew())
+print('Kurtosis: ', houses['price'].kurt())
+
+
+# We can normalize the price using a log transformation. This makes the data more symettryic and follow a normal-like distribution, helping reduce the impact of outliers, handle skewed data, and stabilize the variance across diffferent levels of the variable.
+
+# In[13]:
+
+
+houses['log_price'] = np.log(houses['price'])
+
+log_skewness = skew(houses['log_price'])
+log_kurtosis = kurtosis(houses['log_price'])
+
+print("Log Skewness: ", log_skewness)
+print("Log Kurtosis: ", log_kurtosis)
+
+sns.histplot(data=houses, x='log_price', kde=True)
+plt.xlabel('Log Price')
+plt.ylabel('Frequency')
+plt.title('Log Sales Price Distribution')
+plt.show()
+
+
+# Let's start digging into some other stuff, let's make sure there are no duplicates.
+
+# In[15]:
 
 
 houses.duplicated().sum()
+
+
+# Let's look at the correlation between the price and our features.
+
+# In[18]:
+
+
+houses.corr()['log_price'].sort_values(ascending=False)
+
+
+# In[21]:
+
+
+fig, ax = plt.subplots(figsize=(12,8))
+sns.heatmap(houses.corr(), annot=True, ax=ax)
+
+
+# The Zillow estimates are highly correlated, however these are estimates/predictions themselves. I'd like to create a model that doesn't use another estimate/prediction system. Using them may improve the accuracy of my model, however these are current estimates and not estimates from when the house was sold. I may revisit this, still thinking through it. I'm going to drop the taxAssessedValue as well.
+
+# In[27]:
+
+
+houses.drop(['zestimate', 'rentZestimate', 'taxAssessedValue'], axis=1, inplace=True)
+
+
+# The dateSold and the latitude/longitude weren't very correlated to the price. I'd like to use latitude and longititude in some way, may revisit later.
+
+# In[29]:
+
+
+houses.drop(['dateSold', 'latitude', 'longitude'], axis=1, inplace=True)
+
+
+# I'm going to drop price to since we are using the log_price.
+
+# In[31]:
+
+
+houses.drop(['price'], axis=1, inplace=True)
+
+
+# Lot's of good features here, however some of them have missing values. Let's figure out what to do with these.
+
+# In[32]:
+
+
+houses.isna().sum()
+
+
+# Option 1: Remove rows with missing values
+
+# In[33]:
+
+
+houses_clean = houses.dropna()
+
+
+# In[37]:
+
+
+houses_clean.info()
+
+
+# Option 2: Fill in missing values
+
+# In[34]:
+
+
+houses_filled = houses.copy()
+houses_filled['beds'].fillna(houses_filled['beds'].median(), inplace=True)
+houses_filled['baths'].fillna(houses_filled['baths'].median(), inplace=True)
+houses_filled['sqft'].fillna(houses_filled['sqft'].median(), inplace=True)
+houses_filled['lotAreaValue'].fillna(houses_filled['lotAreaValue'].median(), inplace=True)
+
+
+# In[38]:
+
+
+houses_filled.info()
+
+
+# I'm gonna go with the houses_clean for now, let's see how we are looking.
+
+# In[39]:
+
+
+houses_clean.corr()['log_price'].sort_values(ascending=False)
 
 
 # # Feature Engineering
@@ -316,7 +457,7 @@ houses.duplicated().sum()
 
 # # Interpretation and Validation
 
-# In[27]:
+# In[97]:
 
 
 # ⚠️ Make sure you run this cell at the end of your notebook before every submission!
