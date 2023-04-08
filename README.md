@@ -1,6 +1,5 @@
 # Final-Project-Template
 <!-- Edit the title above with your project title -->
-Please only look at the LovelandHousing notebook for checkpoint 2.
 ## Self Assessment and Reflection
 
 <!-- Edit the following section with your self assessment and reflection -->
