@@ -457,7 +457,7 @@ houses_clean.corr()['log_price'].sort_values(ascending=False)
 
 # # Interpretation and Validation
 
-# In[97]:
+# In[40]:
 
 
 # ⚠️ Make sure you run this cell at the end of your notebook before every submission!
