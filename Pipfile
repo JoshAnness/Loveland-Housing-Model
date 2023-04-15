@@ -16,6 +16,7 @@ matplotlib = "*"
 plotly = "*"
 seaborn = "*"
 scipy = "*"
+redfin = "*"
 
 [dev-packages]
 

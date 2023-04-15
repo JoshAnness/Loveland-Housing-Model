@@ -51,9 +51,9 @@
 # 7. Interpretation and Validation: Analyze the results, interpret the model's predictions, and validate the model's accuracy by comparing it with the human's predictions on a new set of properties not used during training. If the model demonstrates superior performance, the hypothesis will be supported.
 
 # # Data Collection
-# I'm scrapping Zillow to get all the houses sold in the Loveland, OH (45140 Zip Code) area in the past year (4/7/2022 - 4/7/2023)
+# **I'm scrapping Zillow to get all the houses sold in the Loveland, OH (45140 Zip Code) area in the past year (4/7/2022 - 4/7/2023)**
 
-# In[1]:
+# In[2]:
 
 
 import json
@@ -62,6 +62,7 @@ import pandas as pd
 import http.client
 import numpy as np
 from scipy.stats import skew, kurtosis
+from redfin import Redfin
 
 get_ipython().run_line_magic('matplotlib', 'inline')
 import matplotlib as mpl
@@ -78,7 +79,7 @@ pd.set_option('display.max_rows', 500)
 pd.set_option('display.float_format', lambda x: '%.4f' % x)
 
 
-# Making a request to Zillow to get the houses with the following fields that I've identified as meaningful
+# **Making a request to Zillow to get the houses with the following fields that I've identified as meaningful**
 
 # In[2]:
 
@@ -165,7 +166,7 @@ def getData(json_obj):
     brokerName.append(d['brokerName'] if 'brokerName' in d else None)
 
 
-# Run initially to get the total pages of data in the response
+# **Run initially to get the total pages of data in the response**
 
 # In[3]:
 
@@ -190,7 +191,7 @@ total_pages = json_obj.get('cat1', dict()).get('searchList', dict()).get('totalP
 print(total_pages)
 
 
-# Zillow does not like scraping, so we need to sleep for a while between requests
+# **Zillow does not like scraping, so we need to sleep for a while between requests**
 
 # In[4]:
 
@@ -201,7 +202,7 @@ for page in range(1, total_pages+1):
     time.sleep(100)
 
 
-# Let's put our scraped data into a csv for future use
+# **Let's put our scraped data into a csv for future use**
 
 # In[5]:
 
@@ -214,7 +215,7 @@ houses.to_csv('houses.csv', index=False)
 
 # # Data Preprocessing & Exploratory Data Analysis
 
-# In[2]:
+# In[63]:
 
 
 houses = pd.read_csv('houses.csv')
@@ -222,27 +223,27 @@ houses = houses[houses['addressZipcode'] == 45140]
 houses.info()
 
 
-# Dropping some unuseful columns
+# **Dropping some unuseful columns**
 
-# In[3]:
+# In[64]:
 
 
 houses.drop(['statusType', 'soldPrice', 'address', 'addressStreet', 'addressCity', 'addressState', 'addressZipcode', 'isZillowOwned', 'variableData', 'hdpData', 'price', 'homeType', 'homeStatus', 'priceForHDP', 'currency', 'country', 'brokerName'], axis=1, inplace=True)
 houses.info()
 
 
-# Changing column names to make more sense
+# **Changing column names to make more sense**
 
-# In[4]:
+# In[65]:
 
 
 houses.rename(columns={'unformattedPrice': 'price', 'area': 'sqft'}, inplace=True)
 houses.head()
 
 
-# Some of the area values are in sqft and some are in acres, let's convert all of them to acres
+# **Some of the area values are in sqft and some are in acres, let's convert all of them to acres**
 
-# In[5]:
+# In[66]:
 
 
 def convert_to_acres(row):
@@ -256,30 +257,30 @@ houses['lotAreaValue'] = houses.apply(convert_to_acres, axis=1)
 houses.drop(['lotAreaUnit'], axis=1, inplace=True)
 
 
-# The price is what we're focused on, so let's take a further look at it
+# **The price is what we're focused on, so let's take a further look at it**
 
-# In[6]:
+# In[67]:
 
 
 print(houses['price'].describe())
 print('Median: ', houses['price'].median())
 
 
-# Wow, a house sold for $10.3 million and one sold for only $1,000! Something isn't right, I did some digging and it looks like Zillow had some wrong data for some "houses". I checked the $10.3 million dollar "house" and it turns out it isn't a house. To negate these issues, I've decided to filter my dataset to prices under $10,000,000.
+# **Wow, a house sold for `$`10.3 million and one sold for only `$`1,000! Something isn't right, I did some digging and it looks like Zillow had some wrong data for some "houses". I checked the `$`10.3 million dollar "house" and it turns out it isn't a house. To negate these issues, I've decided to filter my dataset to prices under `$`10,000,000.**
 # 
 # I filtered by the zip code 45140 above so this house ins't in our data frame but it is in the raw data, go ahead and check out the price ;) - https://www.zillow.com/homedetails/6091-2nd-St-Miamiville-OH-45147/2062599063_zpid/
 
-# In[7]:
+# In[68]:
 
 
-houses = houses[(houses['price'] < 10000000)]
+houses = houses[(houses['price'] < 5000000)]
 print(houses['price'].describe())
 print('Median: ', houses['price'].median())
 
 
-# For the houses on the lower end of the price spectrum (like our $1,000 house), I found that either the data was wrong or the houses were complete trash (fixer-uppers if you will). So the cells below were used to help me determine an appropriate cutoff
+# **For the houses on the lower end of the price spectrum (like our $1,000 house), I found that either the data was wrong or the houses were complete trash (fixer-uppers if you will). So the cells below were used to help me determine an appropriate cutoff**
 
-# In[8]:
+# In[69]:
 
 
 p1 = np.percentile(houses['price'], 1)
@@ -301,21 +302,21 @@ plt.legend()
 plt.show()
 
 
-# 1st percentile: $15,000 - Choosing this value would retain 99% of the data, but the value still seems quite low for a home price.
-# 5th percentile: $85,000 - This option retains 95% of the data and seems a little more reasonable as a minimum value for a house.
-# 10th percentile: $149,900 - This choice retains 90% of the data and might be more representative of the lower end of the housing market.
+# **1st percentile: $15,000 - Choosing this value would retain 99% of the data, but the value still seems quite low for a home price.**
+# **5th percentile: $85,000 - This option retains 95% of the data and seems a little more reasonable as a minimum value for a house.**
+# **10th percentile: $149,900 - This choice retains 90% of the data and might be more representative of the lower end of the housing market.**
 # 
-# Due to our fixer-upper dillema, I'm gonna go with $149,900 as our minimum value for price.
+# **Due to our fixer-upper dillema, I'm gonna go with $149,900 as our minimum value for price.**
 
-# In[9]:
+# In[70]:
 
 
 houses = houses[(houses['price'] >= 149900)]
 
 
-# Let's check out a histogram of the price again
+# **Let's check out a histogram of the price again**
 
-# In[10]:
+# In[71]:
 
 
 ax = sns.histplot(houses['price'], kde=True)
@@ -323,18 +324,18 @@ ax.xaxis.set_major_formatter(plt.FuncFormatter('{:,.0f}'.format))
 plt.show()
 
 
-# This looks better but it is still skewed to the right, let's look at this further
+# **This looks better but it is still skewed to the right, let's look at this further**
 
-# In[11]:
+# In[72]:
 
 
 print('Skewness: ', houses['price'].skew())
 print('Kurtosis: ', houses['price'].kurt())
 
 
-# We can normalize the price using a log transformation. This makes the data more symettryic and follow a normal-like distribution, helping reduce the impact of outliers, handle skewed data, and stabilize the variance across diffferent levels of the variable.
+# **We can normalize the price using a log transformation. This makes the data more symettryic and follow a normal-like distribution, helping reduce the impact of outliers, handle skewed data, and stabilize the variance across diffferent levels of the variable.**
 
-# In[13]:
+# In[73]:
 
 
 houses['log_price'] = np.log(houses['price'])
@@ -352,78 +353,78 @@ plt.title('Log Sales Price Distribution')
 plt.show()
 
 
-# Let's start digging into some other stuff, let's make sure there are no duplicates.
+# **Let's start digging into some other stuff, let's make sure there are no duplicates.**
 
-# In[15]:
+# In[74]:
 
 
 houses.duplicated().sum()
 
 
-# Let's look at the correlation between the price and our features.
+# **Let's look at the correlation between the price and our features.**
 
-# In[18]:
+# In[75]:
 
 
 houses.corr()['log_price'].sort_values(ascending=False)
 
 
-# In[21]:
+# In[76]:
 
 
 fig, ax = plt.subplots(figsize=(12,8))
 sns.heatmap(houses.corr(), annot=True, ax=ax)
 
 
-# The Zillow estimates are highly correlated, however these are estimates/predictions themselves. I'd like to create a model that doesn't use another estimate/prediction system. Using them may improve the accuracy of my model, however these are current estimates and not estimates from when the house was sold. I may revisit this, still thinking through it. I'm going to drop the taxAssessedValue as well.
+# **The Zillow estimates are highly correlated, however these are estimates/predictions themselves. I'd like to create a model that doesn't use another estimate/prediction system. Using them may improve the accuracy of my model, however these are current estimates and not estimates from when the house was sold. I may revisit this, still thinking through it. I'm going to drop the taxAssessedValue as well.**
 
-# In[27]:
+# In[77]:
 
 
 houses.drop(['zestimate', 'rentZestimate', 'taxAssessedValue'], axis=1, inplace=True)
 
 
-# The dateSold and the latitude/longitude weren't very correlated to the price. I'd like to use latitude and longititude in some way, may revisit later.
+# **The dateSold and the latitude/longitude weren't very correlated to the price. I'd like to use latitude and longititude in some way, may revisit later.**
 
-# In[29]:
+# In[78]:
 
 
 houses.drop(['dateSold', 'latitude', 'longitude'], axis=1, inplace=True)
 
 
-# I'm going to drop price to since we are using the log_price.
+# **I'm going to drop price to since we are using the log_price.**
 
-# In[31]:
+# In[79]:
 
 
 houses.drop(['price'], axis=1, inplace=True)
 
 
-# Lot's of good features here, however some of them have missing values. Let's figure out what to do with these.
+# **Lot's of good features here, however some of them have missing values. Let's figure out what to do with these.**
 
-# In[32]:
+# In[80]:
 
 
 houses.isna().sum()
 
 
-# Option 1: Remove rows with missing values
+# **Option 1: Remove rows with missing values**
 
-# In[33]:
+# In[81]:
 
 
 houses_clean = houses.dropna()
 
 
-# In[37]:
+# In[82]:
 
 
 houses_clean.info()
 
 
-# Option 2: Fill in missing values
+# **Option 2: Fill in missing values**
 
-# In[34]:
+# In[83]:
 
 
 houses_filled = houses.copy()
@@ -433,21 +434,39 @@ houses_filled['sqft'].fillna(houses_filled['sqft'].median(), inplace=True)
 houses_filled['lotAreaValue'].fillna(houses_filled['lotAreaValue'].median(), inplace=True)
 
 
-# In[38]:
+# In[84]:
 
 
 houses_filled.info()
 
 
-# I'm gonna go with the houses_clean for now, let's see how we are looking.
+# **I'm gonna go with the houses_clean for now, let's see how we are looking.**
 
-# In[39]:
+# In[87]:
 
 
 houses_clean.corr()['log_price'].sort_values(ascending=False)
 
 
 # # Feature Engineering
+
+# **I thought lotAreaValue would be more meaningful, let's **
+
+# In[88]:
+
+
+# Interaction term
+houses_clean['beds_baths_interaction'] = houses_clean['beds'] * houses_clean['baths']
+
+# Polynomial features
+houses_clean['sqft_squared'] = houses_clean['sqft'] ** 2
+houses_clean['sqft_cubed'] = houses_clean['sqft'] ** 3
+
+# Ratio feature
+houses_clean['baths_per_bed'] = houses_clean['baths'] / houses_clean['beds']
+
+houses_clean.corr()['log_price'].sort_values(ascending=False)
+
 
 # # Model Selection
 
@@ -457,9 +476,64 @@ houses_clean.corr()['log_price'].sort_values(ascending=False)
 
 # # Interpretation and Validation
 
-# In[40]:
+# In[59]:
 
 
 # ⚠️ Make sure you run this cell at the end of your notebook before every submission!
 get_ipython().system('jupyter nbconvert --to python source.ipynb')
+
+
+# In[15]:
+
+
+from redfin import Redfin
+
+client = Redfin()
+
+address = '4544 Radnor St, Detroit Michigan'
+
+response = client.search(address)
+
+url = '/OH/Loveland/6872-Clubside-Dr-45140/home/63713622'
+initial_info = client.initial_info(url)
+
+property_id = initial_info['payload']['propertyId']
+mls_data = client.below_the_fold(property_id)
+
+listing_id = initial_info['payload']['listingId']
+avm_details = client.avm_details(property_id, listing_id)
+
+
+# In[17]:
+
+
+mls_data
+
+
+# In[23]:
+
+
+# Replace 'data' with the actual name of your dictionary
+data = mls_data
+
+amenity_info = data['payload']['amenitiesInfo']
+
+amenities = {}
+
+for super_group in amenity_info['superGroups']:
+    for amenity_group in super_group['amenityGroups']:
+        group_title = amenity_group['groupTitle']
+        amenities[group_title] = {}
+        for amenity_entry in amenity_group['amenityEntries']:
+            if 'amenityName' in amenity_entry:
+                amenity_name = amenity_entry['amenityName']
+                amenity_values = amenity_entry['amenityValues']
+                amenities[group_title][amenity_name] = amenity_values
+
+# Print the extracted amenities
+for group_title, group_amenities in amenities.items():
+    print(group_title)
+    for amenity_name, amenity_values in group_amenities.items():
+        print(f"  {amenity_name}: {', '.join(amenity_values)}")
+    print()
 
