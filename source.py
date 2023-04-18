@@ -10,6 +10,10 @@
 # 📝 <!-- Answer Below -->
 # 
 # The problem being addressed is the difficulty in accurately predicting home prices in the real estate markets. Homebuyers, sellers, and real estate professionals can benefit from a reliable and accurate model that provides an estimation of home prices based on historical sales and relevant attributes.
+# 
+# Zillow's Model Debacle that costed $500mm+:
+# 
+# https://insidebigdata.com/2021/12/13/the-500mm-debacle-at-zillow-offers-what-went-wrong-with-the-ai-models/
 
 # ## Project Question
 # *What specific question are you seeking to answer with this project?*
@@ -29,7 +33,7 @@
 # *How are you going to relate these datasets?*
 # 📝 <!-- Answer Below -->
 # 
-# I will be scrapping Zillow
+# I will be scrapping Zillow and querying an API based on Redfin, relating the two on home address.
 
 # ## Approach and Analysis
 # *What is your approach to answering your project question?*
@@ -42,18 +46,16 @@
 # 
 # 3. Feature Engineering: Identify and create new features that may have predictive power, based on domain knowledge and exploratory data analysis.
 # 
-# 4. Model Selection: Test various machine learning algorithms (e.g., linear regression, decision trees, support vector machines, and neural networks) and select the one that provides the best performance, based on evaluation metrics like Mean Absolute Error (MAE) and R-squared.
+# 4. Model Selection/Training/Evaluation: Test various machine learning algorithms (e.g., linear regression, decision trees, support vector machines, and neural networks) and select the one that provides the best performance, based on evaluation metrics like Mean Absolute Error (MAE) and R-squared. Train the selected model on the preprocessed dataset, tuning hyperparameters as needed to optimize performance. Evaluate the model's performance on a test dataset not used during training.
 # 
-# 5. Model Training: Train the selected model on the preprocessed dataset, tuning hyperparameters as needed to optimize performance.
-# 
-# 6. Model Evaluation: Evaluate the model's performance on a test dataset not used during training.
-# 
-# 7. Interpretation and Validation: Analyze the results, interpret the model's predictions, and validate the model's accuracy by comparing it with the human's predictions on a new set of properties not used during training. If the model demonstrates superior performance, the hypothesis will be supported.
+# 7. Testing and Results: Analyze the results, interpret the model's predictions, and validate the model's accuracy by comparing it with the human's predictions on a new set of properties not used during training. If the model demonstrates superior performance, the hypothesis will be supported.
 
 # # Data Collection
 # **I'm scrapping Zillow to get all the houses sold in the Loveland, OH (45140 Zip Code) area in the past year (4/7/2022 - 4/7/2023)**
 
-# In[290]:
+# **All the libraries I may be using**
+
+# In[308]:
 
 
 import json
@@ -92,7 +94,7 @@ pd.set_option('display.max_rows', 500)
 pd.set_option('display.float_format', lambda x: '%.4f' % x)
 
 
-# **Making a request to Zillow to get the houses with the following fields that I've identified as meaningful**
+# **Making a request to Zillow to get the houses with the following fields that I've identified as meaningful. Some data may be missing for some of the fields which is why this looks complicated and convoluted**
 
 # In[2]:
 
@@ -179,7 +181,7 @@ def getData(json_obj):
     brokerName.append(d['brokerName'] if 'brokerName' in d else None)
 
 
-# **Run initially to get the total pages of data in the response**
+# **Multi-page response so let's make a request to see how many pages of data there will be**
 
 # In[3]:
 
@@ -204,7 +206,7 @@ total_pages = json_obj.get('cat1', dict()).get('searchList', dict()).get('totalP
 print(total_pages)
 
 
-# **Zillow does not like scraping, so we need to sleep for a while between requests**
+# **Zillow does not like scraping, so we need to set a time-out between requests (or we will be banned)**
 
 # In[4]:
 
@@ -228,6 +230,8 @@ houses.to_csv('houses.csv', index=False)
 
 # # Data Preprocessing & Exploratory Data Analysis
 
+# **Reading our csv into a dataframe with houses in the 45140 area code**
+
 # In[92]:
 
 
@@ -236,7 +240,7 @@ houses = houses[houses['addressZipcode'] == 45140]
 houses.info()
 
 
-# **Dropping some unuseful columns**
+# **Dropping some unuseful columns (either redundant or probably won't help our model)**
 
 # In[93]:
 
@@ -279,9 +283,9 @@ print(houses['price'].describe())
 print('Median: ', houses['price'].median())
 
 
-# **Wow, a house sold for `$`10.3 million and one sold for only `$`1,000! Something isn't right, I did some digging and it looks like Zillow had some wrong data for some "houses". I checked the `$`10.3 million dollar "house" and it turns out it isn't a house. To negate these issues, I've decided to filter my dataset to prices under `$`10,000,000.**
+# **Wow, a house sold for `$`10.3 million and one sold for only `$`1,000! Something isn't right, I did some digging and it looks like Zillow had some wrong data for some "houses". I checked the `$`10.3 million dollar "house" and it turns out it isn't a house. To negate issues at the higher end of the spectrum, I've decided to filter my dataset to prices under `$`5,000,000.**
 # 
-# I filtered by the zip code 45140 above so this house ins't in our data frame but it is in the raw data, go ahead and check out the price ;) - https://www.zillow.com/homedetails/6091-2nd-St-Miamiville-OH-45147/2062599063_zpid/
+# I filtered by the zip code 45140 above so this house isn't in our dataframe but it is in the raw data; go ahead and check out the price ;) - https://www.zillow.com/homedetails/6091-2nd-St-Miamiville-OH-45147/2062599063_zpid/
 
 # In[97]:
 
@@ -475,8 +479,6 @@ houses_filled.head(3)
 # In[76]:
 
 
-# I've went ahead and commented out this cell so it doesn't run again
-"""
 client = Redfin()
 
 def get_amenities(address):
@@ -530,12 +532,11 @@ for index, row in houses_filled.iterrows():
 
 # Print the updated DataFrame
 print(houses_filled)
-"""
 
 
 # **Let's save these**
 
-# In[207]:
+# In[329]:
 
 
 #houses_filled.to_csv('houses_filled.csv', index=False)
@@ -550,7 +551,7 @@ houses_filled_new.info()
 
 # **Let's drop the columns where more than 30% of the values are null**
 
-# In[209]:
+# In[330]:
 
 
 # Calculate the percentage of missing values for each column
@@ -566,7 +567,7 @@ houses_filled_new = houses_filled_new.drop(columns_to_drop, axis=1)
 print(houses_filled_new.info())
 
 
-# In[210]:
+# In[331]:
 
 
 # Get the first row with no null values
@@ -578,13 +579,13 @@ print(example_row)
 
 # **Both sqft from Zillow and Redfin match up ('sqft' and 'Property Information_Living Sq. Ft'), so we can drop one of these. Keep in mind that our 'lotAreaValue' is in acres. The 'Lot Information_Land Sq. Ft' from Redfin is in sqft, but converting this to acres, it is the same value as our 'lotAreaValue'. The 'Lot Information_Acres' is also the same as 'lotAreaValue'. So, let's drop the two new Redfin columns. I'm also going to drop the Assessor Information_Assessment Year because this is probably not meaningful**
 
-# In[211]:
+# In[332]:
 
 
 houses_filled_new.drop(['Property Information_Living Sq. Ft', 'Lot Information_Land Sq. Ft', 'Assessor Information_Assessment Year', 'Lot Information_Acres'], inplace=True, axis=1)
 
 
-# In[212]:
+# In[333]:
 
 
 # Get the first row with no null values
@@ -596,7 +597,7 @@ print(example_row)
 
 # **Let's convert the 'Property Information_Building Sq. Ft' column to float64**
 
-# In[213]:
+# In[334]:
 
 
 houses_filled_new['Property Information_Building Sq. Ft'] = pd.to_numeric(houses_filled_new['Property Information_Building Sq. Ft'], errors='coerce')
@@ -604,7 +605,7 @@ houses_filled_new['Property Information_Building Sq. Ft'] = pd.to_numeric(houses
 
 # **Let's fill the null values for the 'Property Information_Building Sq. Ft' and other columns with their medians**
 
-# In[214]:
+# In[335]:
 
 
 houses_filled_new['Property Information_Building Sq. Ft'].fillna(houses_filled_new['Property Information_Building Sq. Ft'].median(), inplace=True)
@@ -613,7 +614,7 @@ houses_filled_new['Bathroom Information_# of Full Baths'].fillna(houses_filled_n
 
 # **Let's look at some of these columns**
 
-# In[215]:
+# In[336]:
 
 
 houses_filled_new['Lot Information_# of Buildings'].value_counts()
@@ -621,7 +622,7 @@ houses_filled_new['Lot Information_# of Buildings'].value_counts()
 
 # **'Lot Information_# of Buildings' column is not meaningful**
 
-# In[216]:
+# In[337]:
 
 
 houses_filled_new.drop(['Lot Information_# of Buildings'], inplace=True, axis=1)
@@ -629,7 +630,7 @@ houses_filled_new.drop(['Lot Information_# of Buildings'], inplace=True, axis=1)
 
 # **Let's look and see what some of these non-numerical column values are**
 
-# In[218]:
+# In[338]:
 
 
 print(houses_filled_new['Exterior Information_Physical Condition'].value_counts())
@@ -639,7 +640,7 @@ print(houses_filled_new['Lot Information_State Use Description'].value_counts())
 
 # **'Lot Information_State Use Description' doesn't look like it will be meaningful to me, plus it would seem to cause us trouble filling its null values. Let's take a look at the other two**
 
-# In[219]:
+# In[339]:
 
 
 houses_filled_new.drop(['Lot Information_State Use Description'], inplace=True, axis=1)
@@ -647,7 +648,7 @@ houses_filled_new.drop(['Lot Information_State Use Description'], inplace=True, 
 
 # **Filling the null values for 'Exterior Information_Physical Condition' and 'Lot Information_Municipality Name' with their modes**
 
-# In[220]:
+# In[340]:
 
 
 houses_filled_new['Exterior Information_Physical Condition'] = houses_filled_new['Exterior Information_Physical Condition'].fillna(houses_filled_new['Exterior Information_Physical Condition'].mode()[0])
@@ -656,7 +657,7 @@ houses_filled_new['Lot Information_Municipality Name'] = houses_filled_new['Lot 
 
 # **Now let's encode the 'Exterior Information_Physical Condition' and the 'Lot Information_Municipality Name' columns because they are categorical features**
 
-# In[240]:
+# In[341]:
 
 
 # List of columns to one-hot encode
@@ -669,7 +670,7 @@ houses_filled_new_encoded = pd.concat([houses_filled_new.drop(columns_to_encode,
 
 # **We should be looking good**
 
-# In[241]:
+# In[342]:
 
 
 houses_filled_new_encoded.info()
@@ -677,7 +678,7 @@ houses_filled_new_encoded.info()
 
 # **Let's look at the correlations now**
 
-# In[242]:
+# In[343]:
 
 
 houses_filled_new_encoded_without_addr = houses_filled_new_encoded.drop(columns=['address'])
@@ -687,7 +688,7 @@ correlations = correlations.sort_values(ascending=False)
 print(correlations)
 
 
-# In[243]:
+# In[344]:
 
 
 fig, ax = plt.subplots(figsize=(12,8))
@@ -696,7 +697,7 @@ sns.heatmap(houses_filled_new_encoded_without_addr.corr(), annot=True, ax=ax)
 
 # **The features 'baths' and 'Bathroom Information_# of Full Baths' seem to be pretty highly correlated between each other, so I am going to drop 'Bathroom Information_# of Full Baths' so we can avoid multicollinearity**
 
-# In[244]:
+# In[345]:
 
 
 houses_filled_new_encoded.drop(['Bathroom Information_# of Full Baths'], inplace=True, axis=1)
@@ -704,7 +705,7 @@ houses_filled_new_encoded.drop(['Bathroom Information_# of Full Baths'], inplace
 
 # **Based on the correlations, I am also going to make a dataframe that only has features with a correlation over .1** 
 
-# In[272]:
+# In[346]:
 
 
 houses_filled_new_encoded_2 = houses_filled_new_encoded.drop(['Property Information_Building Sq. Ft', 'Lot Information_Municipality Name_LOVELAND', 'Exterior Information_Physical Condition_Excellent', 'Lot Information_Municipality Name_HAMILTON TWP', 'lotAreaValue', 'Lot Information_Municipality Name_DEERFIELD TWP', 'Exterior Information_Physical Condition_Very Good', 'Exterior Information_Physical Condition_Fair', 'Exterior Information_Physical Condition_Good'], axis=1)
@@ -712,7 +713,7 @@ houses_filled_new_encoded_2 = houses_filled_new_encoded.drop(['Property Informat
 
 # # Feature Engineering
 
-# **Selecting and transforming some of my raw data to see if it can improve my model**
+# **Selecting and transforming some of my raw data to see if it can improve my model. I've split it up into different dataframes so I can test different features out across different models**
 
 # **Dataframe 1**
 
@@ -782,11 +783,132 @@ print(correlations_org)
 
 # **Dataframe 2**
 
+# In[347]:
+
+
+selected_features = houses_filled_new_encoded[['sqft', 'baths', 'beds', 'log_price',
+                                               'Lot Information_Municipality Name_SYMMES TOWNSHIP',
+                                               'Lot Information_Municipality Name_MIAMI TWP',
+                                               'Exterior Information_Physical Condition_Average',
+                                               'Property Information_Building Sq. Ft',
+                                               'Lot Information_Municipality Name_LOVELAND',
+                                               'Exterior Information_Physical Condition_Excellent',
+                                               'Lot Information_Municipality Name_HAMILTON TWP',
+                                               'lotAreaValue',
+                                               'Lot Information_Municipality Name_DEERFIELD TWP',
+                                               'Exterior Information_Physical Condition_Very Good',
+                                               'Exterior Information_Physical Condition_Fair',
+                                               'Exterior Information_Physical Condition_Good',
+                                               'Lot Information_Municipality Name_LOVELAND CITY',
+                                               'Lot Information_Municipality Name_GOSHEN TWP']]
+
+
+# In[348]:
+
+
+selected_features['sqft_beds_interaction'] = selected_features['sqft'] * selected_features['beds']
+selected_features['sqft_Municipality_SYMMES_interaction'] = selected_features['sqft'] * selected_features['Lot Information_Municipality Name_SYMMES TOWNSHIP']
+selected_features['sqft_Municipality_MIAMI_interaction'] = selected_features['sqft'] * selected_features['Lot Information_Municipality Name_MIAMI TWP']
+selected_features['baths_Municipality_SYMMES_interaction'] = selected_features['baths'] * selected_features['Lot Information_Municipality Name_SYMMES TOWNSHIP']
+selected_features['baths_Municipality_MIAMI_interaction'] = selected_features['baths'] * selected_features['Lot Information_Municipality Name_MIAMI TWP']
+
+
+# In[349]:
+
+
+interaction_features = ['sqft_beds_interaction', 'sqft_Municipality_SYMMES_interaction', 'sqft_Municipality_MIAMI_interaction',
+                        'baths_Municipality_SYMMES_interaction', 'baths_Municipality_MIAMI_interaction']
+
+# Append 'log_price' to the list of interaction features
+interaction_features.append('log_price')
+
+# Calculate the correlation between interaction features and 'log_price'
+correlation = scaled_features[interaction_features].corr()
+
+# Print the correlation
+print(correlation['log_price'])
+
+# Original features
+correlations_org = houses_filled_new_encoded_without_addr.corr()['log_price']
+correlations_org = correlations.sort_values(ascending=False)
+print(correlations_org)
+
+
+# In[352]:
+
+
+scaled_features_no_address = scaled_features.drop(['address', 'baths_Municipality_SYMMES_interaction',
+                     'baths_Municipality_MIAMI_interaction',
+                     'Lot Information_Municipality Name_SYMMES TOWNSHIP',
+                     'Lot Information_Municipality Name_MIAMI TWP',
+                     'Exterior Information_Physical Condition_Average',
+                     'Property Information_Building Sq. Ft',
+                     'Lot Information_Municipality Name_LOVELAND',
+                     'Exterior Information_Physical Condition_Excellent',
+                     'Lot Information_Municipality Name_HAMILTON TWP',
+                     'lotAreaValue',
+                     'Lot Information_Municipality Name_DEERFIELD TWP',
+                     'Exterior Information_Physical Condition_Very Good',
+                     'Exterior Information_Physical Condition_Fair',
+                     'Exterior Information_Physical Condition_Good',
+                     'Lot Information_Municipality Name_LOVELAND CITY',
+                     'Lot Information_Municipality Name_GOSHEN TWP'], axis=1)
+
+
+# **Dataframe 3**
+
+# **I want to revisit our dataframe where I deleted the rows that had null values**
+
+# In[313]:
+
+
+# Calculate the correlation of each feature with the log_price
+corr = houses_filled.drop('address', axis=1).corr()['log_price']
+
+corr_sorted = corr.sort_values(ascending=True)
+
+print(corr)
+
+
+# **New features**
+
+# In[321]:
+
+
+houses_filled_new_encoded = houses_filled
+
+# Create new features
+houses_filled_new_encoded['bed_bath_ratio'] = houses_filled['beds'] / houses_filled['baths']
+houses_filled_new_encoded['sqft_per_bed'] = houses_filled['sqft'] / houses_filled['beds']
+houses_filled_new_encoded['sqft_per_bath'] = houses_filled['sqft'] / houses_filled['baths']
+houses_filled_new_encoded['lot_size_per_sqft'] = houses_filled['lotAreaValue'] / houses_filled['sqft']
+
+# Calculate the correlations with the log_price
+correlations = houses_filled_new_encoded.drop('address', axis=1).corr()['log_price']
+correlations = correlations.sort_values(ascending=False)
+print(correlations)
+
+
+# In[322]:
+
+
+scaled_features['bed_bath_ratio'] = StandardScaler().fit_transform(houses_filled_new_encoded['bed_bath_ratio'].values.reshape(-1, 1))
+scaled_features['sqft_per_bed'] = StandardScaler().fit_transform(houses_filled_new_encoded['sqft_per_bed'].values.reshape(-1, 1))
+scaled_features['sqft_per_bath'] = StandardScaler().fit_transform(houses_filled_new_encoded['sqft_per_bath'].values.reshape(-1, 1))
+scaled_features['lot_size_per_sqft'] = StandardScaler().fit_transform(houses_filled_new_encoded['lot_size_per_sqft'].values.reshape(-1, 1))
+
+
+# In[323]:
+
+
+scaled_features_no_address = scaled_features.drop(['address', 'lot_size_per_sqft', 'sqft_per_bath', 'lotAreaValue'], axis=1)
+
+
 # # Model Training and Evaluation
 
-# **Dataframe 1**
+# **I'm trying a combination of different models on the different dataframes**
 
-# In[286]:
+# In[353]:
 
 
 scaled_features['address'] = houses_filled_new_encoded['address']
@@ -800,6 +922,8 @@ addresses = houses_filled_new_encoded['address']
 
 X_train, X_test, y_train, y_test, addresses_train, addresses_test = train_test_split(X, y, addresses, test_size=0.2, random_state=42)
 
+
+# **Dataframe 1**
 
 # In[287]:
 
@@ -912,22 +1036,7 @@ print(sorted_results.to_string(index=False))
 
 # **Dataframe 2**
 
-# In[305]:
-
-
-scaled_features['address'] = houses_filled_new_encoded_2['address']
-
-# Drop the 'address' column from the scaled_features DataFrame
-scaled_features_no_address = scaled_features.drop('address', axis=1)
-
-X = scaled_features_no_address.drop('log_price', axis=1)
-y = scaled_features_no_address['log_price']
-addresses = houses_filled_new_encoded_2['address']
-
-X_train, X_test, y_train, y_test, addresses_train, addresses_test = train_test_split(X, y, addresses, test_size=0.2, random_state=42)
-
-
-# In[297]:
+# In[354]:
 
 
 # Create a Linear Regression model
@@ -947,7 +1056,7 @@ print(f"Mean Squared Error: {mse}")
 print(f"R-squared Score: {r2}")
 
 
-# In[298]:
+# In[355]:
 
 
 # Ridge Regression
@@ -1018,7 +1127,7 @@ nn_mse = mean_squared_error(y_test, nn_pred)
 nn_r2 = r2_score(y_test, nn_pred)
 
 
-# In[300]:
+# In[356]:
 
 
 results = pd.DataFrame({
@@ -1036,7 +1145,182 @@ sorted_results = results.sort_values(by='MSE', ascending=True)
 print(sorted_results.to_string(index=False))
 
 
-# **Testing**
+# **Dataframe 3**
+
+# In[325]:
+
+
+# Create a Linear Regression model
+lr_model = LinearRegression()
+
+# Train the model on the training data
+lr_model.fit(X_train, y_train)
+
+# Make predictions on the test data
+y_pred = lr_model.predict(X_test)
+
+# Calculate the Mean Squared Error and R-squared score
+mse = mean_squared_error(y_test, y_pred)
+r2 = r2_score(y_test, y_pred)
+
+print(f"Mean Squared Error: {mse}")
+print(f"R-squared Score: {r2}")
+
+
+# In[326]:
+
+
+# Ridge Regression
+ridge = Ridge()
+ridge.fit(X_train, y_train)
+ridge_pred = ridge.predict(X_test)
+ridge_mse = mean_squared_error(y_test, ridge_pred)
+ridge_r2 = r2_score(y_test, ridge_pred)
+
+# Lasso Regression
+lasso = Lasso()
+lasso.fit(X_train, y_train)
+lasso_pred = lasso.predict(X_test)
+lasso_mse = mean_squared_error(y_test, lasso_pred)
+lasso_r2 = r2_score(y_test, lasso_pred)
+
+# Elastic Net Regression
+elastic_net = ElasticNet()
+elastic_net.fit(X_train, y_train)
+elastic_net_pred = elastic_net.predict(X_test)
+elastic_net_mse = mean_squared_error(y_test, elastic_net_pred)
+elastic_net_r2 = r2_score(y_test, elastic_net_pred)
+
+# Decision Trees
+dt = DecisionTreeRegressor()
+dt.fit(X_train, y_train)
+dt_pred = dt.predict(X_test)
+dt_mse = mean_squared_error(y_test, dt_pred)
+dt_r2 = r2_score(y_test, dt_pred)
+
+# Random Forests
+rf = RandomForestRegressor()
+rf.fit(X_train, y_train)
+rf_pred = rf.predict(X_test)
+rf_mse = mean_squared_error(y_test, rf_pred)
+rf_r2 = r2_score(y_test, rf_pred)
+
+# Gradient Boosting Machines (GBMs)
+gbm = GradientBoostingRegressor()
+gbm.fit(X_train, y_train)
+gbm_pred = gbm.predict(X_test)
+gbm_mse = mean_squared_error(y_test, gbm_pred)
+gbm_r2 = r2_score(y_test, gbm_pred)
+
+# Support Vector Machines (SVMs)
+svm = SVR()
+svm.fit(X_train, y_train)
+svm_pred = svm.predict(X_test)
+svm_mse = mean_squared_error(y_test, svm_pred)
+svm_r2 = r2_score(y_test, svm_pred)
+
+# XGBoost Regression
+xgb_reg = XGBRegressor()
+xgb_reg.fit(X_train, y_train)
+xgb_reg_pred = xgb_reg.predict(X_test)
+xgb_reg_mse = mean_squared_error(y_test, xgb_reg_pred)
+xgb_reg_r2 = r2_score(y_test, xgb_reg_pred)
+
+# Neural Networks
+nn = Sequential()
+nn.add(Dense(50, activation='relu', input_dim=X_train.shape[1]))
+nn.add(Dense(25, activation='relu'))
+nn.add(Dense(1))
+nn.compile(optimizer='adam', loss='mean_squared_error')
+nn.fit(X_train, y_train, epochs=100, batch_size=10, verbose=0)
+nn_pred = nn.predict(X_test)
+nn_mse = mean_squared_error(y_test, nn_pred)
+nn_r2 = r2_score(y_test, nn_pred)
+
+
+# In[327]:
+
+
+results = pd.DataFrame({
+    'Model': ['Linear Regression', 'Ridge Regression', 'Lasso Regression', 'Elastic Net Regression',
+              'Decision Trees', 'Random Forests', 'Gradient Boosting Machines', 'Support Vector Machines',
+              'XGBoost Regression', 'Neural Networks'],
+    'MSE': [mse, ridge_mse, lasso_mse, elastic_net_mse, dt_mse, rf_mse, gbm_mse, svm_mse, xgb_reg_mse, nn_mse],
+    'R-squared': [r2, ridge_r2, lasso_r2, elastic_net_r2, dt_r2, rf_r2, gbm_r2, svm_r2, xgb_reg_r2, nn_r2]
+})
+
+# Sort by MSE (Descending order)
+sorted_results = results.sort_values(by='MSE', ascending=True)
+
+# Display the sorted results in a tabular format
+print(sorted_results.to_string(index=False))
+
+
+# # Testing and Results
+
+# **Dataframe 1 using the Random Forests model resulted in the lowest MSE out of all of the different dataframes and models, so I will be using that model and dataframe below**
+
+# ## House 1
+
+# ![Alt text](House1.jpg)
+
+# **Mom's Guess: $519,000**
+# 
+# **Model's Guess: $427,760**
+# 
+# **Actual Price: $492,200**
+# 
+# **Pretty good guess Mom, 1-0**
+
+# ## House 2
+
+# ![Alt text](House2.jpg)
+
+# **Mom's Guess: $293,500**
+# 
+# **Model's Guess: $242,981**
+# 
+# **Actual Price: $257,000**
+# 
+# **Great guess from the model! 1-1**
+
+# ## House 3
+
+# ![Alt text](House3.jpg)
+
+# **Mom's Guess: $683,000**
+# 
+# **Model's Guess: $574,519**
+# 
+# **Actual Price: $550,000**
+# 
+# **Pretty good guess from the model, 1-2**
+
+# ## House 4
+
+# ![Alt text](House4.jpg)
+
+# **Mom's Guess: $305,000**
+# 
+# **Model's Guess: $215,590**
+# 
+# **Actual Price: $277,500**
+# 
+# **She brings it back! 2-2**
+
+# ## House 5 - For All The Marbles
+
+# ![Alt text](House5.jpg)
+
+# **Mom's Guess: $297,600**
+# 
+# **Model's Guess: $344,762**
+# 
+# **Actual Price: $300,000**
+# 
+# **The old woman still has it! 3-2 my mom**
+
+# ### Here is the actual code I ran to produce the results of our experiment
 
 # In[271]:
 
@@ -1066,9 +1350,11 @@ for i, index in enumerate(random_indices):
     print()
 
 
-# # Testing and Results
+# ## Reflection
 
-# In[ ]:
+# **This was a fun experiment. I was able to learn a lot of different things and compile and end-to-end machine learning project. With more time, I think this project could really develop and the final model could become really good. I would've liked to include more location data like using lat/lon to map out neighborhoods/subdivisions. There are so many different possiblites and that is why this is such an iterative process. This was a great starter project for me and I hope to continue development on it.**
+
+# In[359]:
 
 
 # ⚠️ Make sure you run this cell at the end of your notebook before every submission!
