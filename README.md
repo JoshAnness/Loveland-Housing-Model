@@ -9,20 +9,23 @@
 
 | Category          | Score    |
 | ----------------- | -------- |
-| **Setup**         | ... / 10 |
-| **Execution**     | ... / 20 |
-| **Documentation** | ... / 10 |
-| **Presentation**  | ... / 30 |
-| **Total**         | ... / 70 |
+| **Setup**         | 8 / 10 |
+| **Execution**     | 18 / 20 |
+| **Documentation** | 8 / 10 |
+| **Presentation**  | 29 / 30 |
+| **Total**         | 63 / 70 |
 
 ### Reflection
 <!-- Edit the following section with your reflection -->
 
 #### What went well?
+I thought overall the project went well. I was happy with the data I got and the results I saw. I thought it was a solid starter end-to-end project.
 #### What did not go well?
+I wish I had done a better job with the feature engineering and just picking the features. There seemed like infinite possibilities so it was hard to determine what to do.
 #### What did you learn?
+I learned about many aspects of a machine learning project. I learned about many different models. 
 #### What would you do differently next time?
-
+I would try and spend more time on it. I would have liked to include lat/lon and location data in more of way (like neighborhoods/subdivisions). 
 ---
 
 ## Getting Started
